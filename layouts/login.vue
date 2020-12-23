@@ -34,10 +34,15 @@ export default {
     line-height: 1em;
     position: relative;
     vertical-align: bottom;
+    .el-button {
+      width: 120px;
+      padding: 0;
+      line-height: 40px;
+    }
     .captcha {
       display: inline-block;
       position: absolute;
-      right: -110px;
+      right: -140px;
       img {
         width: 90px;
         // height: 50px;

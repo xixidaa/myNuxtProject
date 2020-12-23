@@ -52,9 +52,9 @@
         <el-button type="primary" @click.native.prevent="handleRegister">
           注册
         </el-button>
-        <el-button type="primary" @click.native.prevent="onPop">
+        <!-- <el-button type="primary" @click.native.prevent="onPop">
           点击
-        </el-button>
+        </el-button> -->
       </el-form-item>
     </el-form>
   </div>
