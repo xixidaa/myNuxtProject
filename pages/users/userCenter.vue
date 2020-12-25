@@ -53,16 +53,83 @@ export default {
         this.file = fileList[0]
       })
     },
-    uploadFile () {
-      const formData = new FormData()
-      formData.append('name', 'file')
-      formData.append('file', this.file)
-      this.$http.post('/uploadFile', formData, {
-        onUploadProgress: (progress) => {
-          // axios处理文件上传进度
-          this.uploadProgress = Number(((progress.loaded / progress.total) * 100).toFixed(2))
+    // 解析文件头信息
+    blobToString (blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = function () {
+          console.log(reader.result)
+          const ret = reader.result.split('')
+            .map(v => v.charCodeAt()) // 先转成asc码
+            .map(v => v.toString(16).toUpperCase()) // 将十进制的asc码转化成二进制
+            .map(v => v.padStart(2, '0')) // 生成1位的情况补0
+          console.log(ret)
+
+          resolve(ret.join(' '))
         }
+
+        reader.readAsBinaryString(blob)
       })
+    },
+
+    // 判断gif
+    async isGif (file) {
+      // 判断gif格式: GIF89a GIF87a
+      // gif的前6个16进制为: '47 49 46 38 39 61' 或 '47 49 46 38 37 61'
+      // file splice()一下就变成了blob文件
+      const res = await this.blobToString(file.slice(0, 6))
+
+      const isGif = (res.toString() === '47 49 46 38 39 61') || (res.toString() === '47 49 46 38 37 61')
+      return isGif
+    },
+
+    // 判断png
+    async isPng (file) {
+      // 判断png格式: 前8位16进制数
+      const res = await this.blobToString(file.slice(0, 8))
+
+      const isPng = res.toString() === '89 50 4E 47 0D 0A 1A 0A'
+      return isPng
+    },
+
+    // 判断jpg
+    async isJpg (file) {
+      const length = file.size
+      const start = await this.blobToString(file.slice(0, 2))
+      const tail = await this.blobToString(file.slice(-2, length))
+
+      const isJpg = (start === 'FF D8') && (tail === 'FF D9')
+      return isJpg
+    },
+
+    // 判断文件是否为图片
+    async isImage (file) {
+      return await this.isGif(file) || await this.isPng(file) || await this.isJpg(file) // 文件读取是异步过程
+    },
+
+    async uploadFile () {
+      // 上传之前校验格式
+      if (!await this.isImage(this.file)) {
+        this.$message.error('文件格式错误')
+      } else {
+        const formData = new FormData()
+        formData.append('name', 'file')
+        formData.append('file', this.file)
+        try {
+          const res = await this.$http.post('/uploadFile', formData, {
+            onUploadProgress: (progress) => {
+              // axios处理文件上传进度
+              this.uploadProgress = Number(((progress.loaded / progress.total) * 100).toFixed(2))
+            }
+          })
+
+          if (res.code === 0) {
+            this.$message.success('上传成功')
+          }
+        } catch (error) {
+          throw new Error(error)
+        }
+      }
     },
     handleFileChange (e) {
       const [file] = e.target.files
