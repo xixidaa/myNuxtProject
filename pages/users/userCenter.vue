@@ -4,11 +4,14 @@
     <br>
     <p>欢迎您 {{ userName }}</p>
     <br>
-    <div>
+    <div id="drag" ref="drag">
       <input type="file" name="file" @change="handleFileChange">
     </div>
-    <br>
     <div>
+      <el-progress :text-inside="true" :percentage="uploadProgress" :stroke-width="20" />
+    </div>
+    <br>
+    <div style="textAlign:center">
       <el-button type="primary" @click="uploadFile">
         上传
       </el-button>
@@ -21,18 +24,45 @@ export default {
   data () {
     return {
       userName: '',
-      file: null
+      file: null,
+      uploadProgress: 0 // 上传进度
     }
   },
   mounted () {
     this.getUserInfo()
+    this.bindEvent()
   },
   methods: {
+    bindEvent () {
+      const drag = this.$refs.drag
+      // 监听拖拽进
+      drag.addEventListener('dragover', (e) => {
+        drag.style.borderColor = 'lightcoral'
+        e.preventDefault()
+      })
+      // 监听拖拽出
+      drag.addEventListener('dragleave', (e) => {
+        drag.style.borderColor = '#ccc'
+        e.preventDefault()
+      })
+      // 监听拖拽放下
+      drag.addEventListener('drop', (e) => {
+        e.preventDefault()
+        const fileList = e.dataTransfer.files
+        drag.style.borderColor = '#ccc'
+        this.file = fileList[0]
+      })
+    },
     uploadFile () {
       const formData = new FormData()
       formData.append('name', 'file')
       formData.append('file', this.file)
-      this.$http.post('uploadFile', formData)
+      this.$http.post('/uploadFile', formData, {
+        onUploadProgress: (progress) => {
+          // axios处理文件上传进度
+          this.uploadProgress = Number(((progress.loaded / progress.total) * 100).toFixed(2))
+        }
+      })
     },
     handleFileChange (e) {
       const [file] = e.target.files
@@ -52,6 +82,16 @@ export default {
 }
 </script>
 
-<style>
-
+<style lang="less" scoped>
+  #drag {
+    height: 100px;
+    line-height: 100px;
+    // width: 300px;
+    border: 2px dashed #ccc;
+    text-align: center;
+    vertical-align: middle;
+    // &:hover {
+    //   border-color: lightcoral;
+    // }
+  }
 </style>
