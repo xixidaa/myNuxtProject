@@ -28,7 +28,11 @@
 </template>
 
 <script>
-export default {}
+export default {
+  asyncData ({ redirect }) {
+    redirect('/login')
+  }
+}
 </script>
 
 <style>
