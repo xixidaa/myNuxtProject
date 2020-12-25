@@ -16,16 +16,25 @@
         上传
       </el-button>
     </div>
+    <br>
+    <div>
+      <p>计算hash进度</p>
+      <el-progress :text-inside="true" :percentage="hashProgress" :stroke-width="20" />
+    </div>
   </div>
 </template>
 
 <script>
+const CHUNK_SIZE = 1 * 1024 * 1024 // 全局文件分片大小
 export default {
   data () {
     return {
       userName: '',
       file: null,
-      uploadProgress: 0 // 上传进度
+      uploadProgress: 0, // 上传进度
+      chunks: [], // 文件分片
+      hashProgress: 0,
+      worker: null
     }
   },
   mounted () {
@@ -107,29 +116,66 @@ export default {
       return await this.isGif(file) || await this.isPng(file) || await this.isJpg(file) // 文件读取是异步过程
     },
 
-    async uploadFile () {
-      // 上传之前校验格式
-      if (!await this.isImage(this.file)) {
-        this.$message.error('文件格式错误')
-      } else {
-        const formData = new FormData()
-        formData.append('name', 'file')
-        formData.append('file', this.file)
-        try {
-          const res = await this.$http.post('/uploadFile', formData, {
-            onUploadProgress: (progress) => {
-              // axios处理文件上传进度
-              this.uploadProgress = Number(((progress.loaded / progress.total) * 100).toFixed(2))
-            }
-          })
-
-          if (res.code === 0) {
-            this.$message.success('上传成功')
-          }
-        } catch (error) {
-          throw new Error(error)
-        }
+    // 将文件分片
+    createFileChunks (file, chunkSize = CHUNK_SIZE) {
+      // 将文件根据预设的分片大小进行切分
+      const chunks = []
+      let curr = 0
+      const fileSize = file.size
+      while (curr < fileSize) {
+        chunks.push({
+          index: curr,
+          file: file.slice(curr, curr + chunkSize)
+        })
+        curr += chunkSize
       }
+      return chunks
+    },
+
+    // webWorker计算hash值
+    calculateHashWorker () {
+      return new Promise((resolve) => {
+        // 创建影分身
+        this.worker = new Worker('/hash.js')
+        // 主线程向子线程传递数据
+        this.worker.postMessage({ chunks: this.chunks })
+        // 主线程接收来自子线程的数据
+        this.worker.onmessage = (e) => {
+          const { progress, hash } = e.data
+          this.hashProgress = Number(progress.toFixed(2))
+          if (hash) {
+            resolve(hash)
+          }
+        }
+      })
+    },
+
+    async uploadFile () {
+      this.chunks = this.createFileChunks(this.file)
+      const hash = await this.calculateHashWorker()
+      console.log(hash)
+      // // 上传之前校验格式
+      // if (!await this.isImage(this.file)) {
+      //   this.$message.error('文件格式错误')
+      // } else {
+      //   const formData = new FormData()
+      //   formData.append('name', 'file')
+      //   formData.append('file', this.file)
+      //   try {
+      //     const res = await this.$http.post('/uploadFile', formData, {
+      //       onUploadProgress: (progress) => {
+      //         // axios处理文件上传进度
+      //         this.uploadProgress = Number(((progress.loaded / progress.total) * 100).toFixed(2))
+      //       }
+      //     })
+
+      //     if (res.code === 0) {
+      //       this.$message.success('上传成功')
+      //     }
+      //   } catch (error) {
+      //     throw new Error(error)
+      //   }
+      // }
     },
     handleFileChange (e) {
       const [file] = e.target.files
