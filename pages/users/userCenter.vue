@@ -25,7 +25,10 @@
 </template>
 
 <script>
-const CHUNK_SIZE = 1 * 1024 * 1024 // 全局文件分片大小
+
+import SparkMD5 from 'spark-md5'
+// const CHUNK_SIZE = 1 * 1024 * 1024 // 全局文件分片大小(webworker)
+const CHUNK_SIZE_IDLE = 0.1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
 export default {
   data () {
     return {
@@ -117,7 +120,7 @@ export default {
     },
 
     // 将文件分片
-    createFileChunks (file, chunkSize = CHUNK_SIZE) {
+    createFileChunks (file, chunkSize = CHUNK_SIZE_IDLE) {
       // 将文件根据预设的分片大小进行切分
       const chunks = []
       let curr = 0
@@ -150,10 +153,60 @@ export default {
       })
     },
 
+    /* window.requestIdleCallback()方法将在浏览器的空闲时段内调用的函数排队。这使开发者能够在主事件循环上执行后台和低优先级工作，而不会影响延迟关键事件，如动画和输入响应。函数一般会按先进先调用的顺序执行，然而，如果回调函数指定了执行超时时间timeout，则有可能为了在超时前执行函数而打乱执行顺序。 */
+
+    // 利用requestIdleCallback方式计算hash
+    calculateHashIdle () {
+      const chunks = this.chunks
+      return new Promise((resolve) => {
+        const spark = new SparkMD5.ArrayBuffer()
+        // 利用每一个空闲时间去计算hash
+        let count = 0
+
+        // 追加函数
+        const appendToSpark = (file) => {
+          return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.readAsArrayBuffer(file) // 以数组的形式将文件读进来
+            reader.onload = (e) => {
+              // 追加计算MD5值
+              spark.append(e.target.result)
+              resolve()
+            }
+          })
+        }
+
+        const workLoop = async (deadline) => {
+          while (count < chunks.length && deadline.timeRemaining() > 1) {
+            // 有空闲时间且存在任务
+            await appendToSpark(chunks[count].file)
+            count++
+
+            if (count < chunks.length) {
+              // 没有计算完
+              this.hashProgress = Number(((100 * count) / chunks.length).toFixed(2))
+            } else {
+              // 计算完毕
+              this.hashProgress = 100
+              resolve(spark.end())
+            }
+          }
+          // 没有空闲时间排队执行
+          window.requestIdleCallback(workLoop)
+        }
+        // 第一次调用
+        window.requestIdleCallback(workLoop)
+      })
+    },
+
     async uploadFile () {
       this.chunks = this.createFileChunks(this.file)
+      // webwork方式计算hash
       const hash = await this.calculateHashWorker()
+      // 时间切片的方式计算hash
+      const hash1 = await this.calculateHashIdle()
       console.log(hash)
+      console.log(hash1)
       // // 上传之前校验格式
       // if (!await this.isImage(this.file)) {
       //   this.$message.error('文件格式错误')
