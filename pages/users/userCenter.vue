@@ -199,24 +199,26 @@ export default {
 
     // 抽样hash值计算
     calculateHashSample () {
-      // 采用布隆过滤器的思想,牺牲一部分计算的精度以换取对于大文件更高效的hash值计算
+      // 采用布隆过滤器思想,通过牺牲精度已达到更高效的计算文件的hash值
+      // 取出文件的前2m数据和最后一块的数据 中间各个区块取出2个字节的数据
       return new Promise((resolve) => {
         const file = this.file
-        const fileSize = file.size
-        const spark = new SparkMD5.ArrayBuffer()
-        // 1. 生成抽样文件
+        const size = file.size
         const offset = 2 * 1024 * 1024
+        const reader = new FileReader()
+        const spark = new SparkMD5.ArrayBuffer()
         let curr = 0
-        // 文件的第一块的前2m和最后一个块的全部,以及中间每一个块的前中后两个字节
+
+        // 生成抽样文件
+        // 第一个区块
         const chunks = [file.slice(0, offset)]
-        // 从第二个块开始循环遍历
-        curr = offset
-        while (curr < fileSize) {
-          if (curr + offset >= fileSize) {
-            // 最后一个块
+        curr = offset // 初始值从第二个区块开始
+        while (curr < size) {
+          if (curr + offset >= size) {
+            // 最后一个区块
             chunks.push(file.slice(curr, curr + offset))
           } else {
-            // 中间的块 去前中后2个字节
+            // 中间区块取出前中后2个字节
             const mid = (curr + offset) / 2
             const end = curr + offset
 
@@ -226,8 +228,7 @@ export default {
           }
           curr += offset
         }
-        // 2. 抽样hash计算
-        const reader = new FileReader()
+        // 计算抽样文件hash
         reader.readAsArrayBuffer(new Blob(chunks))
         reader.onload = (e) => {
           spark.append(e.target.result)
@@ -236,47 +237,10 @@ export default {
         }
       })
     },
-    // calculateHashSample () {
-    //   // 采用布隆过滤器思想,通过牺牲精度已达到更高效的计算文件的hash值
-    //   // 取出文件的前2m数据和最后一块的数据 中间各个区块取出2个字节的数据
-    //   return new Promise((resolve) => {
-    //     const file = this.file
-    //     const size = file.size
-    //     const offset = 2 * 1024 * 1024
-    //     const reader = new FileReader()
-    //     const spark = new SparkMD5.ArrayBuffer()
-    //     let curr = 0
-
-    //     // 生成抽样文件
-    //     // 第一个区块
-    //     const chunks = [file.slice(0, offset)]
-    //     curr = offset // 初始值从第二个区块开始
-    //     while (curr < size) {
-    //       if (curr + offset >= size) {
-    //         // 最后一个区块
-    //         chunks.push(file.slice(curr, curr + offset))
-    //       } else {
-    //         // 中间区块取出前中后2个字节
-    //         const mid = (curr + offset) / 2
-    //         const end = curr + offset
-
-    //         chunks.push(file.slice(curr, curr + 2))
-    //         chunks.push(file.slice(mid, mid + 2))
-    //         chunks.push(file.slice(end - 2, end))
-    //       }
-    //       curr += offset
-    //     }
-    //     // 计算抽样文件hash
-    //     reader.readAsArrayBuffer(new Blob(chunks))
-    //     reader.onload = (e) => {
-    //       spark.append(e.target.result)
-    //       this.hashProgress = 100
-    //       resolve(spark.end())
-    //     }
-    //   })
-    // },
 
     async uploadFile () {
+      this.hashProgress = 0
+      this.uploadProgress = 0
       this.chunks = this.createFileChunks(this.file)
       // webwork方式计算hash
       // const hash = await this.calculateHashWorker()
