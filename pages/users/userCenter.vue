@@ -21,6 +21,30 @@
       <p>计算hash进度</p>
       <el-progress :text-inside="true" :percentage="hashProgress" :stroke-width="20" />
     </div>
+
+    <div>
+      <!-- 每个chunk的progress
+      <0 上传失败 红色  === 100 上传成功 绿色
+       -->
+      <div class="cubeContainer" :style="{width: cubeWidth + 'px'}">
+        <div v-for="chunk in chunks" :key="chunk.chunkName" class="cube">
+          <div
+            :class="{
+              'progress': chunk.progress > 0 && chunk.progress <100,
+              'success': chunk.progress === 100,
+              'failed': chunk.progress < 0
+            }"
+            :style="{height: chunk.progress+'%'}"
+          >
+            <i
+              v-if="chunk.progress > 1 && chunk.progress < 100"
+              class="el-icon-loading"
+              style="color: #f56c6c"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -28,16 +52,33 @@
 
 import SparkMD5 from 'spark-md5'
 // const CHUNK_SIZE = 1 * 1024 * 1024 // 全局文件分片大小(webworker)
-const CHUNK_SIZE_IDLE = 0.1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
+const CHUNK_SIZE_IDLE = 1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
 export default {
   data () {
     return {
       userName: '',
       file: null,
-      uploadProgress: 0, // 上传进度
+      // uploadProgress: 0, // 上传进度
       chunks: [], // 文件分片
       hashProgress: 0,
-      worker: null
+      worker: null,
+      hash: null // 文件hash
+    }
+  },
+  computed: {
+    cubeWidth () {
+      // 对文件的长度开方算出每行个数 * 16px
+      return Math.ceil(Math.sqrt(this.chunks.length)) * 16
+    },
+    uploadProgress () {
+      if (!this.file || this.chunks.length) {
+        return 0
+      }
+      const loaded = this.chunks.map((item) => {
+        // 每个分片上传的大小 * 每个分片上传的进度 = 每个分片上传的部分
+        return item.chunk.size * item.progress
+      }).reduce((acc, cur) => acc + cur, 0)
+      return parseInt(((loaded * 100) / this.file.size).toFixed(2))
     }
   },
   mounted () {
@@ -239,8 +280,12 @@ export default {
     },
 
     async uploadFile () {
+      if (!this.file) {
+        this.$message.error('请添加文件后上传')
+        return
+      }
       this.hashProgress = 0
-      this.uploadProgress = 0
+      // this.uploadProgress = 0
       this.chunks = this.createFileChunks(this.file)
       // webwork方式计算hash
       // const hash = await this.calculateHashWorker()
@@ -249,34 +294,63 @@ export default {
       // console.log(hash)
       // console.log(hash1)
       // 抽样hash计算
-      const hash2 = await this.calculateHashSample()
-      console.log(hash2)
-      // // 上传之前校验格式
-      // if (!await this.isImage(this.file)) {
-      //   this.$message.error('文件格式错误')
-      // } else {
-      //   const formData = new FormData()
-      //   formData.append('name', 'file')
-      //   formData.append('file', this.file)
-      //   try {
-      //     const res = await this.$http.post('/uploadFile', formData, {
-      //       onUploadProgress: (progress) => {
-      //         // axios处理文件上传进度
-      //         this.uploadProgress = Number(((progress.loaded / progress.total) * 100).toFixed(2))
-      //       }
-      //     })
-
-      //     if (res.code === 0) {
-      //       this.$message.success('上传成功')
-      //     }
-      //   } catch (error) {
-      //     throw new Error(error)
-      //   }
-      // }
+      this.hash = await this.calculateHashSample()
+      // 对文件进行预处理
+      this.chunks = this.chunks.map((chunk, index) => {
+        // 切片的名称 hash + index
+        const chunkName = this.hash + '-' + index
+        return {
+          hash: this.hash,
+          chunkName,
+          index,
+          progress: 0,
+          chunk: chunk.file
+        }
+      })
+      // 处理分块上传
+      await this.uploadChunks()
     },
+    // 处理分片上传
+    async uploadChunks () {
+    //  处理文件传参,转成formdata
+      const request = this.chunks.map((chunk, index) => {
+        const form = new FormData()
+        form.append('chunkName', chunk.chunkName)
+        form.append('hash', chunk.hash)
+        form.append('chunk', chunk.chunk)
+        return form
+      }).map((formItem, index) => {
+        return new Promise((resolve) => {
+          this.$http.post('/uploadFile', formItem, {
+            onUploadProgress: (progress) => {
+              this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
+              resolve()
+            }
+          })
+        })
+      })
+      // @todo 并发控制
+      await Promise.all(request)
+      await this.mergeRequest()
+    },
+    // 合并分片请求
+    mergeRequest () {
+      this.$http.post('/requestMerge', {
+        ext: this.file.name.split('.').pop(),
+        hash: this.hash,
+        size: this.file.size
+      })
+    },
+    // mergeRequest () {
+    //   this.$http.post('/requestMerge', {
+    //     ext: this.file.name.split('.').pop(),
+    //     size: CHUNK_SIZE_IDLE,
+    //     hash: this.hash
+    //   })
+    // },
     handleFileChange (e) {
       this.hashProgress = 0
-      this.uploadProgress = 0
+      // this.uploadProgress = 0
       const [file] = e.target.files
       if (!file) { return }
       this.file = file
@@ -305,5 +379,24 @@ export default {
     // &:hover {
     //   border-color: lightcoral;
     // }
+  }
+  .cubeContainer {
+    .cube {
+      width: 14px;
+      height: 14px;
+      line-height: 12px;
+      border: 1px solid black;
+      // background-color: #eee;
+      float: left;
+    }
+  }
+  .progress {
+    background: #409EFF;
+  }
+  .success {
+    background: #67c23a;
+  }
+  .failed {
+    background: #F56C6C;
   }
 </style>

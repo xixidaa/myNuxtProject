@@ -124,7 +124,6 @@ export default {
     // 发送邮箱验证码
     async sendEmailCode () {
       // @todo
-      await this.$http.get('/sendCode?email=' + this.form.email)
       this.send.timer = 10
       this.timer = setInterval(() => {
         this.send.timer -= 1
@@ -132,6 +131,7 @@ export default {
           clearInterval(this.timer)
         }
       }, 1000)
+      await this.$http.get('/sendCode?email=' + this.form.email)
     }
   }
 }
