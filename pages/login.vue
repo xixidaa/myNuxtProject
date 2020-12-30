@@ -9,38 +9,77 @@
       <div class="title-container">
         <Logo />
       </div>
-      <el-form-item prop="email" label="邮箱">
+      <el-form-item
+        prop="email"
+        label="邮箱"
+      >
         <span>
           <i class="el-icon-mobile" />
         </span>
-        <el-input v-model="form.email" placeholder="请输入邮箱" />
+        <el-input
+          v-model="form.email"
+          placeholder="请输入邮箱"
+        />
       </el-form-item>
 
-      <el-form-item prop="captcha" label="验证码" class="captcha-container">
-        <el-input v-model="form.captcha" placeholder="请输入验证码" />
+      <el-form-item
+        prop="captcha"
+        label="验证码"
+        class="captcha-container"
+      >
+        <el-input
+          v-model="form.captcha"
+          placeholder="请输入验证码"
+        />
         <div class="captcha">
-          <img :src="captchaUrl" alt="" @click="updateCaptcha">
+          <img
+            :src="captchaUrl"
+            alt=""
+            @click="updateCaptcha"
+          >
         </div>
       </el-form-item>
 
-      <el-form-item prop="emailcode" label="邮箱验证码" class="captcha-container">
-        <el-input v-model="form.emailcode" placeholder="请输入邮箱验证码" />
+      <el-form-item
+        prop="emailcode"
+        label="邮箱验证码"
+        class="captcha-container"
+      >
+        <el-input
+          v-model="form.emailcode"
+          placeholder="请输入邮箱验证码"
+        />
         <div class="captcha">
-          <el-button type="primary" :disabled="send.timer > 0" @click="sendEmailCode">
+          <el-button
+            type="primary"
+            :disabled="send.timer > 0"
+            @click="sendEmailCode"
+          >
             {{ sendText }}
           </el-button>
         </div>
       </el-form-item>
 
-      <el-form-item prop="passwd" label="密码">
+      <el-form-item
+        prop="passwd"
+        label="密码"
+      >
         <span>
           <i class="el-icon-lock" />
         </span>
-        <el-input v-model="form.passwd" placeholder="请输入密码" type="password" />
+        <el-input
+          v-model="form.passwd"
+          placeholder="请输入密码"
+          type="password"
+          @keyup.enter.native="handleLogin"
+        />
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" @click.native.prevent="handleLogin">
+        <el-button
+          type="primary"
+          @click.native.prevent="handleLogin"
+        >
           登录
         </el-button>
       </el-form-item>
@@ -60,7 +99,7 @@ export default {
       },
       form: {
         email: '575583692@qq.com',
-        passwd: '',
+        passwd: '123456',
         captcha: '',
         emailcode: ''
       },

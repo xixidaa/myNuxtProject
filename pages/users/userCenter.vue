@@ -4,37 +4,62 @@
     <br>
     <p>欢迎您 {{ userName }}</p>
     <br>
-    <div id="drag" ref="drag">
-      <input type="file" name="file" @change="handleFileChange">
+    <div
+      id="drag"
+      ref="drag"
+    >
+      <input
+        type="file"
+        name="file"
+        @change="handleFileChange"
+      >
     </div>
     <div>
-      <el-progress :text-inside="true" :percentage="uploadProgress" :stroke-width="20" />
+      <el-progress
+        :text-inside="true"
+        :percentage="uploadProgress"
+        :stroke-width="20"
+      />
     </div>
     <br>
-    <div style="textAlign:center">
-      <el-button type="primary" @click="uploadFile">
+    <div style="textalign: center">
+      <el-button
+        type="primary"
+        @click="uploadFile"
+      >
         上传
       </el-button>
     </div>
     <br>
     <div>
       <p>计算hash进度</p>
-      <el-progress :text-inside="true" :percentage="hashProgress" :stroke-width="20" />
+      <el-progress
+        :text-inside="true"
+        :percentage="hashProgress"
+        :stroke-width="20"
+      />
     </div>
 
     <div>
       <!-- 每个chunk的progress
       <0 上传失败 红色  === 100 上传成功 绿色
        -->
-      <div class="cubeContainer" :style="{width: cubeWidth + 'px'}">
-        <div v-for="chunk in chunks" :key="chunk.chunkName" class="cube">
+      <div
+        class="cubeContainer"
+        :style="{ width: cubeWidth + 'px' }"
+      >
+        <div
+          v-for="chunk in chunks"
+          :key="chunk.chunkName"
+          class="cube"
+        >
           <div
             :class="{
-              'progress': chunk.progress > 0 && chunk.progress <100,
-              'success': chunk.progress === 100,
-              'failed': chunk.progress < 0
+              progress: chunk.progress > 0 && chunk.progress < 100,
+              success: chunk.progress === 100,
+              failed: chunk.progress < 0,
             }"
-            :style="{height: chunk.progress+'%'}"
+            :style="{ height: chunk.progress + '%' }"
           >
             <i
               v-if="chunk.progress > 1 && chunk.progress < 100"
@@ -278,7 +303,7 @@ export default {
         }
       })
     },
-
+    // 文件上传
     async uploadFile () {
       if (!this.file) {
         this.$message.error('请添加文件后上传')
@@ -286,15 +311,27 @@ export default {
       }
       this.hashProgress = 0
       // this.uploadProgress = 0
-      this.chunks = this.createFileChunks(this.file)
       // webwork方式计算hash
       // const hash = await this.calculateHashWorker()
       // // 时间切片的方式计算hash
       // const hash1 = await this.calculateHashIdle()
-      // console.log(hash)
-      // console.log(hash1)
       // 抽样hash计算
       this.hash = await this.calculateHashSample()
+      // 在文件上传之前去查询该文件是否存在于后端
+      const res = await this.$http.post('/checkFile', {
+        hash: this.hash,
+        ext: this.file.name.split('.').pop()
+      })
+      const { uploaded, uploadedList } = res.data
+
+      if (uploaded) {
+        this.$message.success('文件秒传成功!')
+        return
+      } else {
+        console.log(uploadedList)
+      }
+      // 对文件进行切片
+      this.chunks = this.createFileChunks(this.file)
       // 对文件进行预处理
       this.chunks = this.chunks.map((chunk, index) => {
         // 切片的名称 hash + index
@@ -312,7 +349,7 @@ export default {
     },
     // 处理分片上传
     async uploadChunks () {
-    //  处理文件传参,转成formdata
+      //  处理文件传参,转成formdata
       const request = this.chunks.map((chunk, index) => {
         const form = new FormData()
         form.append('chunkName', chunk.chunkName)
@@ -331,6 +368,7 @@ export default {
       })
       // @todo 并发控制
       await Promise.all(request)
+      // 上传完成后发送合并切片请求
       await this.mergeRequest()
     },
     // 合并分片请求
@@ -341,13 +379,6 @@ export default {
         size: this.file.size
       })
     },
-    // mergeRequest () {
-    //   this.$http.post('/requestMerge', {
-    //     ext: this.file.name.split('.').pop(),
-    //     size: CHUNK_SIZE_IDLE,
-    //     hash: this.hash
-    //   })
-    // },
     handleFileChange (e) {
       this.hashProgress = 0
       // this.uploadProgress = 0
@@ -369,34 +400,34 @@ export default {
 </script>
 
 <style lang="less" scoped>
-  #drag {
-    height: 100px;
-    line-height: 100px;
-    // width: 300px;
-    border: 2px dashed #ccc;
-    text-align: center;
-    vertical-align: middle;
-    // &:hover {
-    //   border-color: lightcoral;
-    // }
+#drag {
+  height: 100px;
+  line-height: 100px;
+  // width: 300px;
+  border: 2px dashed #ccc;
+  text-align: center;
+  vertical-align: middle;
+  // &:hover {
+  //   border-color: lightcoral;
+  // }
+}
+.cubeContainer {
+  .cube {
+    width: 14px;
+    height: 14px;
+    line-height: 12px;
+    border: 1px solid black;
+    // background-color: #eee;
+    float: left;
   }
-  .cubeContainer {
-    .cube {
-      width: 14px;
-      height: 14px;
-      line-height: 12px;
-      border: 1px solid black;
-      // background-color: #eee;
-      float: left;
-    }
-  }
-  .progress {
-    background: #409EFF;
-  }
-  .success {
-    background: #67c23a;
-  }
-  .failed {
-    background: #F56C6C;
-  }
+}
+.progress {
+  background: #409eff;
+}
+.success {
+  background: #67c23a;
+}
+.failed {
+  background: #f56c6c;
+}
 </style>
