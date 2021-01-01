@@ -79,7 +79,7 @@
 
 import SparkMD5 from 'spark-md5'
 // const CHUNK_SIZE = 1 * 1024 * 1024 // 全局文件分片大小(webworker)
-const CHUNK_SIZE_IDLE = 0.1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
+const CHUNK_SIZE_IDLE = 1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
 export default {
   data () {
     return {
@@ -362,18 +362,8 @@ export default {
           form.append('hash', chunk.hash)
           form.append('chunk', chunk.chunk)
           // 解决断点续传上传进度条显示问题
-          return { form, index: chunk.chunkIndex }
+          return { form, index: chunk.chunkIndex, error: 0 }
         })
-      // .map(({ form, index }) => {
-      //   return new Promise((resolve) => {
-      //     this.$http.post('/uploadFile', form, {
-      //       onUploadProgress: (progress) => {
-      //         this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
-      //         resolve()
-      //       }
-      //     })
-      //   })
-      // })
       // 尝试申请的tcp链接过多,会导致浏览器卡顿
       // await Promise.all(request)
       // 异步的并发控制
@@ -386,24 +376,42 @@ export default {
       return new Promise((resolve, reject) => {
         const len = request.length
         let counter = 0
+        let isStop = false // 是否终止文件上传标志位
 
         const start = async () => {
           const task = request.shift()
+          if (isStop) {
+            return
+          }
           if (task) {
             const { form, index } = task
-            await this.$http.post('/uploadFile', form, {
-              onUploadProgress: (progress) => {
-                this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
-              }
-            })
+            try {
+              await this.$http.post('/uploadFile', form, {
+                onUploadProgress: (progress) => {
+                  this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
+                }
+              })
 
-            if (counter === len - 1) {
-              // 最后一个任务
-              resolve()
-            } else {
-              counter++
-              // 启动下一个任务
-              start()
+              if (counter === len - 1) {
+                // 最后一个任务
+                resolve()
+              } else {
+                counter++
+                // 启动下一个任务
+                start()
+              }
+            } catch (err) {
+              // 出现报错 进行重试 三次重试失败 终止上传
+              this.chunks[index].progress = -1
+              if (task.error < 3) {
+                task.error++
+                // 将需要重传的文件放到第一位
+                request.unshift(task)
+                start()
+              } else {
+                isStop = true
+                reject(err)
+              }
             }
           }
         }
