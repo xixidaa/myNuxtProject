@@ -4,6 +4,8 @@
     <br>
     <p>欢迎您 {{ userName }}</p>
     <br>
+    <!-- 解决上传字体加载过慢的问题 -->
+    <i class="el-icon-upload" />
     <div
       id="drag"
       ref="drag"
@@ -77,7 +79,7 @@
 
 import SparkMD5 from 'spark-md5'
 // const CHUNK_SIZE = 1 * 1024 * 1024 // 全局文件分片大小(webworker)
-const CHUNK_SIZE_IDLE = 1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
+const CHUNK_SIZE_IDLE = 0.1 * 1024 * 1024 // 全局文件分片大小(requestIdleCallback)
 export default {
   data () {
     return {
@@ -317,6 +319,7 @@ export default {
       // const hash1 = await this.calculateHashIdle()
       // 抽样hash计算
       this.hash = await this.calculateHashSample()
+
       // 在文件上传之前去查询该文件是否存在于后端
       const res = await this.$http.post('/checkFile', {
         hash: this.hash,
@@ -326,57 +329,98 @@ export default {
 
       if (uploaded) {
         this.$message.success('文件秒传成功!')
-        return
       } else {
-        console.log(uploadedList)
+        // 对文件进行切片
+        this.chunks = this.createFileChunks(this.file)
+        // 对文件进行预处理
+        this.chunks = this.chunks.map((chunk, chunkIndex) => {
+          // 切片的名称 hash + index
+          const chunkName = this.hash + '-' + chunkIndex
+          return {
+            hash: this.hash,
+            chunkName,
+            chunkIndex,
+            progress: uploadedList.includes(chunkName) ? 100 : 0, // 文件切片已存在进度条显示
+            chunk: chunk.file
+          }
+        })
+        // 处理分块上传
+        await this.uploadChunks(uploadedList)
       }
-      // 对文件进行切片
-      this.chunks = this.createFileChunks(this.file)
-      // 对文件进行预处理
-      this.chunks = this.chunks.map((chunk, index) => {
-        // 切片的名称 hash + index
-        const chunkName = this.hash + '-' + index
-        return {
-          hash: this.hash,
-          chunkName,
-          index,
-          progress: 0,
-          chunk: chunk.file
-        }
-      })
-      // 处理分块上传
-      await this.uploadChunks()
     },
     // 处理分片上传
-    async uploadChunks () {
+    async uploadChunks (uploadedList) {
+      // 分片上传前过滤已上传分片
       //  处理文件传参,转成formdata
-      const request = this.chunks.map((chunk, index) => {
-        const form = new FormData()
-        form.append('chunkName', chunk.chunkName)
-        form.append('hash', chunk.hash)
-        form.append('chunk', chunk.chunk)
-        return form
-      }).map((formItem, index) => {
-        return new Promise((resolve) => {
-          this.$http.post('/uploadFile', formItem, {
-            onUploadProgress: (progress) => {
-              this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
-              resolve()
-            }
-          })
+      const request = this.chunks
+        .filter((chunk) => {
+          return !uploadedList.includes(chunk.chunkName)
         })
-      })
-      // @todo 并发控制
-      await Promise.all(request)
+        .map((chunk, index) => {
+          const form = new FormData()
+          form.append('chunkName', chunk.chunkName)
+          form.append('hash', chunk.hash)
+          form.append('chunk', chunk.chunk)
+          // 解决断点续传上传进度条显示问题
+          return { form, index: chunk.chunkIndex }
+        })
+      // .map(({ form, index }) => {
+      //   return new Promise((resolve) => {
+      //     this.$http.post('/uploadFile', form, {
+      //       onUploadProgress: (progress) => {
+      //         this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
+      //         resolve()
+      //       }
+      //     })
+      //   })
+      // })
+      // 尝试申请的tcp链接过多,会导致浏览器卡顿
+      // await Promise.all(request)
+      // 异步的并发控制
+      await this.sendRequest(request)
       // 上传完成后发送合并切片请求
       await this.mergeRequest()
+    },
+    sendRequest (request, limit = 4) {
+      // limit 控制异步并发的请求数
+      return new Promise((resolve, reject) => {
+        const len = request.length
+        let counter = 0
+
+        const start = async () => {
+          const task = request.shift()
+          if (task) {
+            const { form, index } = task
+            await this.$http.post('/uploadFile', form, {
+              onUploadProgress: (progress) => {
+                this.chunks[index].progress = Number(((progress.loaded * 100) / progress.total).toFixed(2))
+              }
+            })
+
+            if (counter === len - 1) {
+              // 最后一个任务
+              resolve()
+            } else {
+              counter++
+              // 启动下一个任务
+              start()
+            }
+          }
+        }
+
+        while (limit > 0) {
+          // 启动limit个并发任务
+          start()
+          limit -= 1
+        }
+      })
     },
     // 合并分片请求
     mergeRequest () {
       this.$http.post('/requestMerge', {
         ext: this.file.name.split('.').pop(),
         hash: this.hash,
-        size: this.file.size
+        size: CHUNK_SIZE_IDLE // 每个区块的大小 用于后端文件切片进行合并
       })
     },
     handleFileChange (e) {

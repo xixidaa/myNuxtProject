@@ -10,37 +10,74 @@
       <div class="title-container">
         <Logo />
       </div>
-      <el-form-item prop="email" label="邮箱">
+      <el-form-item
+        prop="email"
+        label="邮箱"
+      >
         <span>
           <i class="el-icon-mobile" />
         </span>
-        <el-input v-model="form.email" placeholder="请输入邮箱" />
+        <el-input
+          v-model="form.email"
+          placeholder="请输入邮箱"
+        />
       </el-form-item>
 
-      <el-form-item prop="nickname" label="昵称">
+      <el-form-item
+        prop="nickname"
+        label="昵称"
+      >
         <span>
           <i class="el-icon-mobile" />
         </span>
-        <el-input v-model="form.nickname" placeholder="请输入昵称" />
+        <el-input
+          v-model="form.nickname"
+          placeholder="请输入昵称"
+        />
       </el-form-item>
 
-      <el-form-item prop="passwd" label="密码">
+      <el-form-item
+        prop="passwd"
+        label="密码"
+      >
         <span>
           <i class="el-icon-lock" />
         </span>
-        <el-input v-model="form.passwd" placeholder="请输入密码" type="password" />
+        <el-input
+          v-model="form.passwd"
+          placeholder="请输入密码"
+          type="password"
+        />
       </el-form-item>
-      <el-form-item prop="repasswd" label="确认密码">
+      <el-form-item
+        prop="repasswd"
+        label="确认密码"
+      >
         <span>
           <i class="el-icon-lock" />
         </span>
-        <el-input v-model="form.repasswd" placeholder="请再次输入密码" type="password" />
+        <el-input
+          v-model="form.repasswd"
+          placeholder="请再次输入密码"
+          type="password"
+        />
       </el-form-item>
 
-      <el-form-item prop="captcha" label="验证码" class="captcha-container">
-        <el-input v-model="form.captcha" placeholder="请输入验证码" />
+      <el-form-item
+        prop="captcha"
+        label="验证码"
+        class="captcha-container"
+      >
+        <el-input
+          v-model="form.captcha"
+          placeholder="请输入验证码"
+        />
         <div class="captcha">
-          <img :src="captchaUrl" alt="" @click="updateCaptcha">
+          <img
+            :src="captchaUrl"
+            alt=""
+            @click="updateCaptcha"
+          >
         </div>
       </el-form-item>
 
@@ -49,12 +86,18 @@
       </div> -->
 
       <el-form-item>
-        <el-button type="primary" @click.native.prevent="handleRegister">
+        <el-button
+          type="primary"
+          @click.native.prevent="handleRegister"
+        >
           注册
         </el-button>
-        <!-- <el-button type="primary" @click.native.prevent="onPop">
-          点击
-        </el-button> -->
+        <el-button
+          type="primary"
+          @click.native.prevent="handlePagePop"
+        >
+          满意度调查
+        </el-button>
       </el-form-item>
     </el-form>
   </div>
@@ -110,8 +153,8 @@ export default {
     this.handleRegister = throttle(this.register, 3000)
   },
   methods: {
-    onPop () {
-      window.open('http://119.254.217.194/questionnaire/start?channel=1&questionnaireId=1', '', 'top=100,left=100,width=414,height=736')
+    handlePagePop () {
+      window.open('http://ylbzjwx.kaifeng.gov.cn/questionnaire/start?channel=2&questionnaireId=1', '', 'top=100,left=100,width=414,height=736')
     },
     updateCaptcha () {
       this.captchaUrl = '/api/captcha?_t=' + new Date().getTime()
