@@ -146,7 +146,7 @@ export default {
               this.$message.success('登录成功')
               localStorage.setItem('token', res.data.token)
               setTimeout(() => {
-                this.$router.push('/users/userCenter')
+                this.$router.push('/indexContainner')
               }, 500)
             } else {
               this.$message.error(res.message)
