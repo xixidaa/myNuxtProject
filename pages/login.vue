@@ -89,6 +89,9 @@
 
 <script>
 import md5 from 'md5'
+// import _ from 'lodash'
+import { throttle } from '../utils/debounce_throttle'
+
 export default {
   layout: 'login',
   data () {
@@ -131,7 +134,7 @@ export default {
     }
   },
   methods: {
-    handleLogin () {
+    handleLogin: throttle(function () {
       this.$refs.loginForm.validate(async (valid) => {
         if (valid) {
           try {
@@ -146,7 +149,7 @@ export default {
               this.$message.success('登录成功')
               localStorage.setItem('token', res.data.token)
               setTimeout(() => {
-                this.$router.push('/indexContainner')
+                this.$router.push('/')
               }, 500)
             } else {
               this.$message.error(res.message)
@@ -156,7 +159,7 @@ export default {
           }
         }
       })
-    },
+    }, 500),
     updateCaptcha () {
       this.captchaUrl = '/api/captcha?_t=' + new Date().getTime()
     },

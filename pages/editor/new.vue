@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 /* eslint-disable vue/no-v-html */
 <template>
   <div>
@@ -12,6 +13,7 @@
     <el-row>
       <el-col :span="12">
         <textarea
+          ref="editor"
           class="md_editor"
           :value="content"
           cols="30"
@@ -31,26 +33,75 @@
 
 <script>
 import marked from 'marked'
+import highlight from 'highlight.js'
+// eslint-disable-next-line no-unused-vars
+import javascript from 'highlight.js/lib/languages/javascript'
+import 'highlight.js/styles/monokai-sublime.css'
 import _ from 'lodash'
 export default {
+
   data () {
     return {
       content: ''
     }
   },
+
   computed: {
     compileMarkdown () {
-      return marked(this.content)
+      return marked(this.content, { sanitize: false })
     }
   },
+
+  created () {
+  },
   mounted () {
+    this.bindEvents()
+    // 配置markdown
+    marked.setOptions({
+      rendered: new marked.Renderer(),
+      highlight (code) {
+        return highlight.highlightAuto(code).value
+      }
+    })
     // this.timer = null
   },
   methods: {
-    submit () { },
+
+    bindEvents () {
+      // 监听粘贴事件
+      this.$refs.editor.addEventListener('paste', function (e) {
+        const file = e.clipboardData.files[0]
+        console.log(file)
+        // 上传逻辑
+      })
+      // 监听拖拽事件
+      this.$refs.editor.addEventListener('drop', function (e) {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        console.log(file)
+      })
+
+      // 监听页面保存事件
+      window.addEventListener('keydown', function (e) {
+        if ((e.key === 's' || e.key === 'S') && (navigator.platform.match('Mac') ? e.metaKey : e.ctrlKey)) {
+          e.preventDefault()
+          console.log('监听保存')
+        }
+      })
+    },
+    async submit () {
+      if (this.content === '') {
+        return this.$message.error('您没有编写任何东西')
+      }
+      const res = await this.$http.post('/article/create', {
+        content: this.content, // 用户编写md存入数据库,selected:false
+        compileMarkdown: this.compileMarkdown // 默认显示转译好的文本
+      })
+      console.log(res)
+    },
     // update (e) {
     //   if (this.timer) {
-    //     clearTimeout(this.timer, { sanitize: true })
+    //     clearTimeout(this.timer)
     //   }
     //   this.timer = setTimeout(() => {
     //     this.content = e.target.value
@@ -74,5 +125,8 @@ export default {
   z-index: 100;
   right: 30px;
   top: 10px;
+}
+.md_containner >>> code {
+  color: #f66;
 }
 </style>

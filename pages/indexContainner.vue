@@ -119,6 +119,7 @@
 
 <script>
 export default {
+  // layout: 'default',
   data () {
     const item = {
       date: '2016-05-02',

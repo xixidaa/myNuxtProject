@@ -9,12 +9,14 @@ const debounce = (fn, delay) => {
     }, delay)
   }
 }
-const throttle = (fn, delay) => {
+const throttle = function (fn, delay) {
   let timer
-  return (...args) => {
+  return function (...args) {
+    // console.log(this)
     if (!timer) {
       timer = setTimeout(() => {
         timer = null
+        // console.log(this)
         fn.apply(this, args)
       }, delay)
     }

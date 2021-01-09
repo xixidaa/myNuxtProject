@@ -1,36 +1,42 @@
 <template>
-  <div class="container">
-    <div>
-      <Logo />
-      <h1 class="title">
-        myNuxtProject
-      </h1>
-      <div class="links">
-        <a
-          href="https://nuxtjs.org/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="button--green"
-        >
-          Documentation
-        </a>
-        <a
-          href="https://github.com/nuxt/nuxt.js"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="button--grey"
-        >
-          GitHub
-        </a>
-      </div>
-    </div>
+  <div class="kkb-container">
+    <VirtualList :list-data="articles" />
+    <!-- <div
+      v-for="article in articles"
+      :key="article.id"
+    >
+      {{ article.title }}
+    </div> -->
   </div>
 </template>
 
 <script>
+import VirtualList from '@/components/VirtualList.vue'
 export default {
-  asyncData ({ redirect }) {
-    redirect('/login')
+  components: {
+    VirtualList
+  },
+  data () {
+    return {
+      articles: [],
+      articleItem: { views: 1, like: 0, dislike: 0, _id: '5ff6c0b9bc4f6b4f84804a90', title: '穿越火线 枪战王者', article_html: '<h1 id="穿越火线-枪战王者">穿越火线 枪战王者</h1>\n<p>cf</p>\n', author: { avatar: '', _id: '5fe2da28066ca53ba0cd845f', email: '575583692@qq.com', nickname: '嘻嘻哒啊', createdAt: '2020-12-23T05:48:24.620Z', updatedAt: '2020-12-23T05:48:24.620Z' }, createdAt: '2021-01-07T08:05:13.394Z', updatedAt: '2021-01-07T08:05:13.394Z', __v: 0 }
+    }
+  },
+
+  // asyncData ({ redirect }) {
+  //   redirect('/login')
+  // }
+  mounted () {
+    this.getList()
+  },
+  methods: {
+    async getList () {
+      const ret = await this.$http.get('/article')
+      if (ret.code === 0) {
+        this.articles = ret.data
+        // this.articles = new Array(10000).fill(this.articleItem)
+      }
+    }
   }
 }
 </script>
@@ -46,16 +52,8 @@ export default {
 }
 
 .title {
-  font-family:
-    'Quicksand',
-    'Source Sans Pro',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
+  font-family: "Quicksand", "Source Sans Pro", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   display: block;
   font-weight: 300;
   font-size: 100px;
@@ -73,5 +71,12 @@ export default {
 
 .links {
   padding-top: 15px;
+}
+html {
+  height: 100%;
+}
+body {
+  height: 100%;
+  margin: 0;
 }
 </style>

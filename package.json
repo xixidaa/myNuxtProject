@@ -15,6 +15,8 @@
     "@nuxtjs/axios": "^5.12.2",
     "core-js": "^3.6.5",
     "element-ui": "^2.13.2",
+    "highlight": "^0.2.4",
+    "highlight.js": "^10.5.0",
     "less": "^3.13.0",
     "less-loader": "^7.1.0",
     "lodash": "^4.17.20",
