@@ -42,7 +42,8 @@ export default {
 
   data () {
     return {
-      content: ''
+      content: '',
+      timer: null
     }
   },
 
@@ -64,6 +65,9 @@ export default {
       }
     })
     // this.timer = null
+  },
+  destroyed () {
+    clearTimeout(this.timer)
   },
   methods: {
 
@@ -97,7 +101,12 @@ export default {
         content: this.content, // 用户编写md存入数据库,selected:false
         compileMarkdown: this.compileMarkdown // 默认显示转译好的文本
       })
-      console.log(res)
+      if (res.code === 0) {
+        this.$message.success('文章创建成功')
+        this.timer = setTimeout(() => {
+          this.$router.push('/')
+        }, 500)
+      }
     },
     // update (e) {
     //   if (this.timer) {

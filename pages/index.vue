@@ -1,12 +1,6 @@
 <template>
   <div class="kkb-container">
     <VirtualList :list-data="articles" />
-    <!-- <div
-      v-for="article in articles"
-      :key="article.id"
-    >
-      {{ article.title }}
-    </div> -->
   </div>
 </template>
 
@@ -33,7 +27,7 @@ export default {
     async getList () {
       const ret = await this.$http.get('/article')
       if (ret.code === 0) {
-        this.articles = ret.data
+        this.articles = ret.data.list
         // this.articles = new Array(10000).fill(this.articleItem)
       }
     }
